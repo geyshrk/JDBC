@@ -14,7 +14,9 @@ public class Main {
 
     public static void main(String[] args) {
         DataSource dataSource = new DataSource();
-        StudentRepository studentRepository = new StudentRepositoryImpl(dataSource, new StudentRowMapper());
+        StudentRepository studentRepository = new StudentRepositoryImpl(
+                new StudentRowMapper(),
+                new JdbcTemplate(dataSource));
 
         Optional<Student> optionalStudent = studentRepository.getById(10L);
 

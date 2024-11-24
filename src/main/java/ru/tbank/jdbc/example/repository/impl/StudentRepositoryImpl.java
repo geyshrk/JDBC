@@ -6,6 +6,7 @@ import ru.tbank.jdbc.example.JdbcTemplate;
 import ru.tbank.jdbc.example.entity.Student;
 import ru.tbank.jdbc.example.mapper.RowMapper;
 import ru.tbank.jdbc.example.mapper.StudentRowMapper;
+import ru.tbank.jdbc.example.repository.Exceptions.InvalidResultsNumberException;
 import ru.tbank.jdbc.example.repository.StudentRepository;
 
 import java.sql.Connection;
@@ -17,46 +18,56 @@ import java.util.Optional;
 
 
 
-// в атрибутах jdbctemplate
 @RequiredArgsConstructor
 public class StudentRepositoryImpl implements StudentRepository {
-
-    private final DataSource dataSource;
     private final RowMapper<Student> rowMapper;
-    private final static JdbcTemplate jdbcTemplate = new JdbcTemplate();
-    private final static String GET_ALL = "select s.id, s.first_name, s.last_name, s.age, s.teacher_id, t.degree," +
+    private final JdbcTemplate jdbcTemplate;
+    private final static String GET_ALL = "SELECT s.id, s.first_name, s.last_name, s.age, s.teacher_id, t.degree," +
             "t.first_name AS teacher_first_name, t.last_name AS teacher_last_name " +
-            "from students AS s INNER JOIN teachers AS t ON t.id = s.teacher_id";
-    private final static String GET_BY_ID = GET_ALL + " where id = ?";
-    private final static String GET_ALL_BY_NAME = GET_ALL + " where first_name = ?";
-    private final static String DELETE = "";
-    private final static String UPDATE = "";
+            "FROM students AS s INNER JOIN teachers AS t ON t.id = s.teacher_id";
+    private final static String GET_BY_ID = GET_ALL + " WHERE id = ?";
+    private final static String GET_ALL_BY_NAME = GET_ALL + " WHERE first_name = ?";
+    private final static String DELETE = "DELETE FROM students WHERE id = ?";
+    private final static String UPDATE = "UPDATE students " +
+            "SET first_name = ?, " +
+            "last_name = ?, " +
+            "teacher_id = ? " +
+            "age = ? " +
+            "WHERE id = ?";
 
     @Override
     public Optional<Student> getById(Long id) {
-        List<Student> result = jdbcTemplate.execute(GET_BY_ID, new StudentRowMapper(), id);
-        if (result.isEmpty()) return Optional.empty();
-        return Optional.of(result.getFirst());
+        List<Student> result = jdbcTemplate.execute(GET_BY_ID, rowMapper, id);
+        return getOneStudent(result);
+    }
+    private Optional<Student> getOneStudent(List<Student> result){
+        if (result.size() > 1) throw new InvalidResultsNumberException("Больше 1 результата");
+        return result.stream().findAny();
     }
 
     @Override
     public List<Student> getAll() {
-        return jdbcTemplate.execute(GET_ALL, new StudentRowMapper());
+        return jdbcTemplate.execute(GET_ALL, rowMapper);
     }
 
     @Override
     public boolean update(Student type) {
-        return false;
+        return jdbcTemplate.executeUpdate(UPDATE,
+                type.getFirstName(),
+                type.getLastName(),
+                type.getTeacher().getId(),
+                type.getAge(),
+                type.getId());
     }
 
     @Override
     public boolean delete(Student type) {
-        return false;
+        return jdbcTemplate.executeUpdate(DELETE, type.getId());
     }
 
     @Override
     public List<Student> getAllByName(String name) {
-        return jdbcTemplate.execute(GET_ALL_BY_NAME, new StudentRowMapper(), name);
+        return jdbcTemplate.execute(GET_ALL_BY_NAME, rowMapper, name);
     }
 
 }
